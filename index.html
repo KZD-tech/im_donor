@@ -3,88 +3,238 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Real-Time Cloudflare</title>
+    <title>Donor Intelligence Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #f3f4f6; font-family: 'Inter', sans-serif; }
-        .card { background: white; border-radius: 8px; border: 1px solid #e5e7eb; padding: 1.5rem; }
+        body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; }
+        .card { background: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e1e4e8; }
+        .pbi-blue { color: #114e8c; }
+        .pbi-bg-blue { background-color: #114e8c; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="p-4 md:p-6">
+
     <div class="max-w-7xl mx-auto">
-        <header class="mb-8">
-            <h1 class="text-2xl font-bold text-gray-800">Dashboard Penyumbang 2023 (Live)</h1>
-            <p id="status" class="text-sm text-green-600 font-medium tracking-tighter">● Bersambung dengan fail CSV</p>
+        <header class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded shadow-sm border border-gray-200">
+            <div>
+                <h1 class="text-xl font-bold text-gray-800">Donor Intelligence Dashboard</h1>
+                <p id="data-status" class="text-xs text-green-600 font-medium">● Bersambung ke GitHub Live Data</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-gray-500 uppercase">Tahun:</span>
+                    <select id="yearFilter" onchange="processData(allData)" class="text-sm border border-gray-300 rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="ALL">Semua Tahun</option>
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                    </select>
+                </div>
+                <button onclick="exportData()" class="pbi-bg-blue text-white px-4 py-1.5 rounded text-sm font-semibold hover:opacity-90 transition flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Eksport CSV
+                </button>
+            </div>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="card">
-                <p class="text-xs font-bold text-gray-400 uppercase">Jumlah Sumbangan</p>
-                <p id="total-amount" class="text-3xl font-bold text-blue-900">Loading...</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="card p-4 border-l-4 border-blue-600">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Revenue</p>
+                <p id="total-revenue" class="text-2xl font-bold pbi-blue">RM 0.00</p>
             </div>
-            <div class="card">
-                <p class="text-xs font-bold text-gray-400 uppercase">Bil. Transaksi</p>
-                <p id="total-tx" class="text-3xl font-bold text-blue-900">0</p>
+            <div class="card p-4 border-l-4 border-blue-600">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">AOV (Purata Derma)</p>
+                <p id="aov" class="text-2xl font-bold pbi-blue">RM 0.00</p>
             </div>
-            <div class="card">
-                <p class="text-xs font-bold text-gray-400 uppercase">Kemas Kini Terakhir</p>
-                <p id="last-update" class="text-3xl font-bold text-blue-900">-</p>
+            <div class="card p-4 border-l-4 border-blue-600">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">LTV (Lifetime Value)</p>
+                <p id="ltv" class="text-2xl font-bold pbi-blue">RM 0.00</p>
+            </div>
+            <div class="card p-4 border-l-4 border-red-500">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Churn Rate (90 Days)</p>
+                <p id="churn-rate" class="text-2xl font-bold text-red-600">0%</p>
             </div>
         </div>
 
-        <div class="card h-96">
-            <h3 class="font-bold mb-4">Trend Sumbangan</h3>
-            <canvas id="liveChart"></canvas>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div class="card p-5 lg:col-span-2">
+                <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase">Trend Sumbangan Bulanan (RM)</h3>
+                <div class="h-72">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+            <div class="card p-5">
+                <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase">Statistik Penyumbang</h3>
+                <div class="space-y-6 mt-4">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="text-sm text-gray-600">Jumlah Transaksi</span>
+                        <span id="tx-count" class="font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="text-sm text-gray-600">Penyumbang Unik</span>
+                        <span id="donor-count" class="font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="text-sm text-gray-600">Penyumbang Setia (Repeat)</span>
+                        <span id="repeat-count" class="font-bold text-blue-600">0</span>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-gray-500 mb-2 uppercase">Retention Rate</p>
+                        <div class="w-full bg-gray-200 rounded-full h-4">
+                            <div id="retention-bar" class="pbi-bg-blue h-4 rounded-full text-[10px] text-white flex items-center justify-center" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        // GANTIKAN DENGAN URL RAW GITHUB ANDA
+        // URL RAW GITHUB ANDA
         const CSV_URL = 'https://raw.githubusercontent.com/KZD-tech/im_donor/refs/heads/main/DRM%20-%20Segmentation%20-%20Customer_Log%202023%20(1).csv';
-        let myChart;
+        
+        let allData = [];
+        let filteredData = [];
+        let trendChart;
 
-        async function fetchData() {
+        async function init() {
             Papa.parse(CSV_URL, {
                 download: true,
                 header: true,
+                skipEmptyLines: true,
                 complete: function(results) {
-                    processData(results.data);
+                    allData = results.data;
+                    processData(allData);
+                },
+                error: function(err) {
+                    document.getElementById('data-status').innerText = "● Gagal memuatkan data";
+                    document.getElementById('data-status').className = "text-xs text-red-600 font-medium";
                 }
             });
         }
 
         function processData(data) {
-            // Logik pemprosesan data CSV
-            let total = 0;
-            let txCount = 0;
+            const year = document.getElementById('yearFilter').value;
+            filteredData = data;
 
-            data.forEach(row => {
-                if(row.amount) {
-                    let val = parseFloat(row.amount.replace('RM', '').replace(',', ''));
-                    if(!isNaN(val)) {
-                        total += val;
-                        txCount++;
+            if (year !== "ALL") {
+                filteredData = data.filter(row => row.donation_date && row.donation_date.includes(year));
+            }
+
+            let totalRevenue = 0;
+            let donorMap = new Map();
+            let monthlyRevenue = Array(12).fill(0);
+
+            filteredData.forEach(row => {
+                const amount = parseFloat(row.amount.replace(/[^\d.-]/g, ''));
+                if (!isNaN(amount)) {
+                    totalRevenue += amount;
+                    
+                    // Group by Email
+                    if (!donorMap.has(row.email)) {
+                        donorMap.set(row.email, { total: 0, count: 0, last: new Date(row.donation_date) });
                     }
+                    let d = donorMap.get(row.email);
+                    d.total += amount;
+                    d.count += 1;
+                    let dDate = new Date(row.donation_date);
+                    if (dDate > d.last) d.last = dDate;
+
+                    // Monthly Trend
+                    let month = dDate.getMonth();
+                    if (!isNaN(month)) monthlyRevenue[month] += amount;
                 }
             });
 
+            // Calculations
+            const txCount = filteredData.length;
+            const donorCount = donorMap.size;
+            const aov = totalRevenue / txCount || 0;
+            const ltv = totalRevenue / donorCount || 0;
+
+            // Churn & Retention
+            let inactiveCount = 0;
+            let repeatCount = 0;
+            const refDate = new Date(); // Use today or max date in data
+            
+            donorMap.forEach(d => {
+                if (d.count > 1) repeatCount++;
+                let diff = (refDate - d.last) / (1000 * 3600 * 24);
+                if (diff > 90) inactiveCount++;
+            });
+
+            const churnRate = (inactiveCount / donorCount * 100) || 0;
+            const retentionRate = (repeatCount / donorCount * 100) || 0;
+
             // Update UI
-            document.getElementById('total-amount').innerText = 'RM ' + total.toLocaleString();
-            document.getElementById('total-tx').innerText = txCount;
-            document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
+            document.getElementById('total-revenue').innerText = `RM ${totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById('aov').innerText = `RM ${aov.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById('ltv').innerText = `RM ${ltv.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById('churn-rate').innerText = `${churnRate.toFixed(1)}%`;
+            document.getElementById('tx-count').innerText = txCount.toLocaleString();
+            document.getElementById('donor-count').innerText = donorCount.toLocaleString();
+            document.getElementById('repeat-count').innerText = repeatCount.toLocaleString();
+            document.getElementById('retention-bar').style.width = `${retentionRate}%`;
+            document.getElementById('retention-bar').innerText = `${retentionRate.toFixed(1)}%`;
 
-            updateChart(data);
+            updateChart(monthlyRevenue);
         }
 
-        function updateChart(data) {
-            // Logik update Chart.js anda di sini
+        function updateChart(monthlyData) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            const labels = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
+
+            if (trendChart) {
+                trendChart.data.datasets[0].data = monthlyData;
+                trendChart.update();
+            } else {
+                trendChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Sumbangan (RM)',
+                            data: monthlyData,
+                            borderColor: '#114e8c',
+                            backgroundColor: 'rgba(17, 78, 140, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 3,
+                            pointRadius: 4
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+            }
         }
 
-        // Auto-refresh setiap 30 saat
-        setInterval(fetchData, 30000);
-        fetchData();
+        function exportData() {
+            if (filteredData.length === 0) return alert("Tiada data!");
+            const csv = Papa.unparse(filteredData);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `Laporan_Sumbangan_${document.getElementById('yearFilter').value}.csv`;
+            link.click();
+        }
+
+        init();
+        // Auto-refresh data every 5 minutes
+        setInterval(init, 300000);
     </script>
 </body>
 </html>
