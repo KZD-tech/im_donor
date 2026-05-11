@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Real-Time Cloudflare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body { background-color: #f3f4f6; font-family: 'Inter', sans-serif; }
+        .card { background: white; border-radius: 8px; border: 1px solid #e5e7eb; padding: 1.5rem; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8">
+            <h1 class="text-2xl font-bold text-gray-800">Dashboard Penyumbang 2023 (Live)</h1>
+            <p id="status" class="text-sm text-green-600 font-medium tracking-tighter">● Bersambung dengan fail CSV</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="card">
+                <p class="text-xs font-bold text-gray-400 uppercase">Jumlah Sumbangan</p>
+                <p id="total-amount" class="text-3xl font-bold text-blue-900">Loading...</p>
+            </div>
+            <div class="card">
+                <p class="text-xs font-bold text-gray-400 uppercase">Bil. Transaksi</p>
+                <p id="total-tx" class="text-3xl font-bold text-blue-900">0</p>
+            </div>
+            <div class="card">
+                <p class="text-xs font-bold text-gray-400 uppercase">Kemas Kini Terakhir</p>
+                <p id="last-update" class="text-3xl font-bold text-blue-900">-</p>
+            </div>
+        </div>
+
+        <div class="card h-96">
+            <h3 class="font-bold mb-4">Trend Sumbangan</h3>
+            <canvas id="liveChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // GANTIKAN DENGAN URL RAW GITHUB ANDA
+        const CSV_URL = 'https://raw.githubusercontent.com/username/repo/main/data.csv';
+        let myChart;
+
+        async function fetchData() {
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: true,
+                complete: function(results) {
+                    processData(results.data);
+                }
+            });
+        }
+
+        function processData(data) {
+            // Logik pemprosesan data CSV
+            let total = 0;
+            let txCount = 0;
+
+            data.forEach(row => {
+                if(row.amount) {
+                    let val = parseFloat(row.amount.replace('RM', '').replace(',', ''));
+                    if(!isNaN(val)) {
+                        total += val;
+                        txCount++;
+                    }
+                }
+            });
+
+            // Update UI
+            document.getElementById('total-amount').innerText = 'RM ' + total.toLocaleString();
+            document.getElementById('total-tx').innerText = txCount;
+            document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
+
+            updateChart(data);
+        }
+
+        function updateChart(data) {
+            // Logik update Chart.js anda di sini
+        }
+
+        // Auto-refresh setiap 30 saat
+        setInterval(fetchData, 30000);
+        fetchData();
+    </script>
+</body>
+</html>
